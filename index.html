@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Interactive Data Graphs & Plots (NSW Sample)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot@4.0.1/build/Chart.BoxPlot.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif;}
+    .tabs { margin: 20px 0; }
+    .tab { display: inline-block; background: #f3f6fa; padding: 10px 24px; cursor: pointer; border: 1px solid #ccc; border-bottom: 0; border-radius: 6px 6px 0 0; margin-right: 6px;}
+    .tab.active { background: #e0edfa; font-weight: bold; }
+    .tab-content { border: 1px solid #ccc; padding: 24px; background: #ffffff; border-radius: 0 0 8px 8px;}
+    .instructions { font-size: 1em; color: #555; margin-bottom: 12px; }
+    .question { font-weight: bold; margin-top: 10px;}
+    .chart-holder { min-height:220px; }
+    pre {background:#f7f7f7;padding:8px;border-radius:4px;margin-bottom:8px;}
+    .dot-row {margin-bottom:4px;}
+    .dot {display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ecc40; margin:2px;}
+    .venn-svg { margin: 14px 0 0 0;}
+  </style>
+</head>
+<body>
+<h2>Interactive Data Graphs and Plots Learning App</h2>
+<div class="tabs" id="tabList"></div>
+<div class="tab-content" id="tabContent"></div>
+
+<script>
+// List of diagrams and their instructions/questions
+const diagrams = [
+  {
+    id: 'bar',
+    name: 'Bar Chart',
+    instruction: 'Bar charts compare discrete categories. Bars are separated for each category.',
+    question: 'Which category has the highest value?',
+  },
+  {
+    id: 'column',
+    name: 'Column Chart',
+    instruction: 'Column charts are vertical bar graphs for discrete categories.',
+    question: 'Identify the category with the lowest value.',
+  },
+  {
+    id: 'line',
+    name: 'Line Graph',
+    instruction: 'Line graphs show trends and changes over time using connected data points.',
+    question: 'Does the graph increase or decrease over time?',
+  },
+  {
+    id: 'pie',
+    name: 'Pie Chart',
+    instruction: 'Pie charts display the proportions of parts as slices of a circle.',
+    question: 'Which slice is the largest?',
+  },
+  {
+    id: 'histogram',
+    name: 'Histogram',
+    instruction: 'Histograms show frequencies of continuous data grouped into adjacent bins.',
+    question: 'Which bin has the most values?',
+  },
+  {
+    id: 'scatter',
+    name: 'Scatter Plot',
+    instruction: 'Scatter plots show the relationship between two numeric variables.',
+    question: 'Do the points show a positive, negative, or no correlation?',
+  },
+  {
+    id: 'area',
+    name: 'Area Graph',
+    instruction: 'Area graphs show how quantities change over time, with area filled under the line.',
+    question: 'What is the value at the peak of the area?',
+  },
+  {
+    id: 'bubble',
+    name: 'Bubble Chart',
+    instruction: 'Bubble charts plot points with variable bubble sizes to represent a third quantity.',
+    question: 'Which bubble is largest?',
+  },
+  {
+    id: 'dot',
+    name: 'Dot Plot',
+    instruction: 'Dot plots use dots to show frequencies for each data value.',
+    question: 'Which value has the most dots?',
+  },
+  {
+    id: 'box',
+    name: 'Box and Whisker Plot',
+    instruction: 'Box plots show spread, quartiles, median, and outliers.',
+    question: 'What is the value of the median?',
+  },
+  {
+    id: 'stemleaf',
+    name: 'Stem-and-Leaf Plot',
+    instruction: 'Stem-and-leaf plots split numbers into stems (leading digits) and leaves (trailing digits).',
+    question: 'What is the mode?',
+  },
+  {
+    id: 'freqpoly',
+    name: 'Frequency Polygon',
+    instruction: 'A frequency polygon connects midpoints of histogram bins with lines.',
+    question: 'Where is the frequency highest?',
+  },
+  {
+    id: 'time',
+    name: 'Time Series Graph',
+    instruction: 'Time series graphs show how values change over chronologically ordered intervals.',
+    question: 'At which time period is the maximum value?',
+  },
+  {
+    id: 'venn',
+    name: 'Venn Diagram',
+    instruction: 'Venn diagrams show relationships, intersections, and unions between sets.',
+    question: 'Which area represents the intersection of both sets?',
+  },
+  {
+    id: 'pareto',
+    name: 'Pareto Chart',
+    instruction: 'Pareto charts show bars in descending order, usually with a cumulative % line.',
+    question: 'Which factor is most significant?',
+  }
+];
+
+// Setup Tabs
+const tabList = document.getElementById('tabList');
+const tabContent = document.getElementById('tabContent');
+diagrams.forEach((d, idx) => {
+  let tab = document.createElement('div');
+  tab.className = 'tab' + (idx===0?' active':'');
+  tab.textContent = d.name;
+  tab.dataset.tabid = d.id;
+  tab.onclick = () => showTab(d.id);
+  tabList.appendChild(tab);
+});
+
+// Current chart instance tracking for cleanup
+let chartInstance = null;
+let plotlyDivId = null;
+
+// Utility functions for random sample data
+function randomArray(len, min=5, max=45) {
+  return Array.from({length:len}, () => Math.floor(Math.random()*(max-min+1) + min));
+}
+function randomCategories(len) {
+  return Array.from({length:len}, (_,i)=>String.fromCharCode(65+i));
+}
+function randomBins(len) {
+  let arr = [];
+  let start = 10;
+  for(let i=0;i<len;i++) arr.push(`${start+(i*10)}-${start+(i*10)+9}`);
+  return arr;
+}
+function randomTimes(len) {
+  return Array.from({length:len}, (_,i) => ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10"][i]);
+}
+
+function cleanup() {
+  if(chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  if(plotlyDivId) { Plotly.purge(plotlyDivId); plotlyDivId=null;}
+  tabContent.innerHTML = '';
+}
+
+// Tabs - show related diagram with random sample, instructions, and question
+function showTab(tabId) {
+  cleanup();
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[data-tabid="${tabId}"]`).classList.add('active');
+  let diagram = diagrams.find(d=>d.id===tabId);
+
+  // Show Instructions and Question
+  let instructions = document.createElement('div');
+  instructions.className = 'instructions';
+  instructions.textContent = diagram.instruction;
+  tabContent.appendChild(instructions);
+
+  let holder = document.createElement('div');
+  holder.className = 'chart-holder';
+  tabContent.appendChild(holder);
+
+  let question = document.createElement('div');
+  question.className = 'question';
+  question.textContent = 'Q: ' + diagram.question;
+  tabContent.appendChild(question);
+
+  // Random data for demonstration
+  let numericData, categories, values, times, binLabels, histCounts;
+  if(tabId === 'bar' || tabId === 'column' || tabId === 'pie') {
+    categories = randomCategories(4);
+    values = randomArray(4);
+  }
+  if(tabId === 'line' || tabId === 'area' || tabId === 'freqpoly' || tabId === 'time') {
+    times = randomTimes(6);
+    values = randomArray(6,1,40);
+  }
+  if(tabId === 'histogram' || tabId === 'box' || tabId === 'dot' || tabId === 'stemleaf') {
+    numericData = randomArray(11,10,45);
+    binLabels = randomBins(4); // 10-19, 20-29, ...
+    histCounts = [
+      numericData.filter(x => x >=10 && x<20).length,
+      numericData.filter(x => x >=20 && x<30).length,
+      numericData.filter(x => x >=30 && x<40).length,
+      numericData.filter(x => x >=40 && x<50).length
+    ];
+  }
+  if(tabId === 'scatter' || tabId === 'bubble') {
+    values = randomArray(4,10,40);
+    categories = randomCategories(4);
+  }
+
+  // Switch by tabId
+  // Chart.js used unless otherwise noted
+  if(tabId === 'bar') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: categories, datasets: [{ data: values, backgroundColor: '#2d91ca' }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+    });
+  }
+  else if(tabId === 'column') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: categories, datasets: [{ data: values, backgroundColor: '#f99e1b' }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+  else if(tabId === 'line') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'line',
+      data: { labels: times, datasets: [{ data: values, borderColor: 'green', fill: false, tension: 0.2 }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: {beginAtZero:true} } }
+    });
+  }
+  else if(tabId === 'pie') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'pie',
+      data: { labels: categories, datasets: [{ data: values, backgroundColor: ['#fc7171','#84c4ec','#82d9a7','#f9dd73'] }] },
+      options: { plugins: { legend:{position:'bottom'} } }
+    });
+  }
+  else if(tabId === 'histogram') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: binLabels, datasets: [{ data: histCounts, backgroundColor: '#ea5537' }] },
+      options: { plugins: { legend: { display: false } }, 
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true } },
+        categoryPercentage: 1.0, barPercentage: 1.0
+      }
+    });
+  }
+  else if(tabId === 'scatter') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'scatter',
+      data: { datasets: [{
+        label: 'Scatter',
+        data: values.map((v,i) => ({x: i+1, y: v})),
+        backgroundColor: '#d32f2f'
+      }]},
+      options: { plugins: { legend: { display: false } }, scales: { x: { title:{display:true,text:'X'}, min:0, max:5 }, y:{ beginAtZero:true } } }
+    });
+  }
+  else if(tabId === 'area') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'line',
+      data: { labels: times, datasets: [{ data: values, borderColor:'#189ad3', backgroundColor:'rgba(24,154,211,0.2)', fill:true }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: {beginAtZero:true} } }
+    });
+  }
+  else if(tabId === 'bubble') {
+    let div = document.createElement('div');
+    div.id = "bubbleTabDiv";
+    holder.appendChild(div);
+    plotlyDivId = "bubbleTabDiv";
+    let sample = {
+      x: [1,2,3,4],
+      y: values,
+      mode: 'markers',
+      marker: {
+        size: values,
+        color: ['#fc7171','#84c4ec','#82d9a7','#f9dd73']
+      },
+      text: categories
+    };
+    Plotly.newPlot(div.id, [sample], {margin:{t:10}, xaxis:{title:'X'}, yaxis:{title:'Y'}});
+  }
+  else if(tabId === 'dot') {
+    let freqMap = {};
+    numericData.forEach(v=>freqMap[v]= (freqMap[v]||0)+1);
+    let dotDiv = document.createElement('div');
+    Object.keys(freqMap).sort((a,b)=>a-b).forEach(val=>{
+      let row = document.createElement('div');
+      row.className = 'dot-row';
+      let label = document.createElement('span');
+      label.style.marginRight = "8px";
+      label.textContent = val + ": ";
+      row.appendChild(label);
+      for(let i=0;i<freqMap[val];i++) {
+        let dot = document.createElement('span'); dot.className = 'dot';
+        row.appendChild(dot);
+      }
+      dotDiv.appendChild(row);
+    });
+    holder.appendChild(dotDiv);
+  }
+  else if(tabId === 'box') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'boxplot',
+      data: { labels: ['Sample'], datasets: [{ data: [numericData], backgroundColor:'#f9dd73' }] },
+      options: { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:false} } }
+    });
+  }
+  else if(tabId === 'stemleaf') {
+    let sorted = numericData.slice().sort((a,b)=>a-b);
+    let stems = {};
+    sorted.forEach(num => {
+      let stem = Math.floor(num/10);
+      let leaf = num%10;
+      stems[stem] = stems[stem] || [];
+      stems[stem].push(leaf);
+    });
+    let text = 'Stem | Leaves\n------------\n';
+    Object.keys(stems).sort((a,b)=>a-b).forEach(stem => {
+      text += `${stem}    | ${stems[stem].join(' ')}\n`;
+    });
+    let pre = document.createElement('pre');
+    pre.textContent = text;
+    holder.appendChild(pre);
+  }
+  else if(tabId === 'freqpoly') {
+    let midpoints = binLabels.map(label => {
+      let parts = label.split('-');
+      return (parseInt(parts[0])+parseInt(parts[1]))/2;
+    });
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'line',
+      data: { labels: midpoints, datasets: [{ data: histCounts, borderColor:'#955251', fill:false }] },
+      options: { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+    });
+  }
+  else if(tabId === 'time') {
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'line',
+      data: { labels: times, datasets: [{ data: values, borderColor:'#636363', fill:false, tension:0.2 }] },
+      options: { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+    });
+  }
+  else if(tabId === 'venn') {
+    let svg = document.createElementNS("http://www.w3.org/2000/svg",'svg');
+    svg.setAttribute('width','220'); svg.setAttribute('height','160'); svg.classList.add('venn-svg');
+    let el1 = document.createElementNS("http://www.w3.org/2000/svg",'ellipse');
+    el1.setAttribute('cx','90'); el1.setAttribute('cy','80'); el1.setAttribute('rx','60'); el1.setAttribute('ry','50');
+    el1.setAttribute('fill','#ffb3a7'); el1.setAttribute('fill-opacity','0.5');
+    svg.appendChild(el1);
+    let el2 = document.createElementNS("http://www.w3.org/2000/svg",'ellipse');
+    el2.setAttribute('cx','140'); el2.setAttribute('cy','80'); el2.setAttribute('rx','60'); el2.setAttribute('ry','50');
+    el2.setAttribute('fill','#a7ceff'); el2.setAttribute('fill-opacity','0.5');
+    svg.appendChild(el2);
+    let t1=document.createElementNS("http://www.w3.org/2000/svg",'text');
+    t1.setAttribute('x','65'); t1.setAttribute('y','50'); t1.setAttribute('font-size','14'); t1.textContent='A'; svg.appendChild(t1);
+    let t2=document.createElementNS("http://www.w3.org/2000/svg",'text');
+    t2.setAttribute('x','145'); t2.setAttribute('y','50'); t2.setAttribute('font-size','14'); t2.textContent='B'; svg.appendChild(t2);
+    let t3=document.createElementNS("http://www.w3.org/2000/svg",'text');
+    t3.setAttribute('x','110'); t3.setAttribute('y','80'); t3.setAttribute('font-size','15'); t3.textContent='A ∩ B'; svg.appendChild(t3);
+    holder.appendChild(svg);
+  }
+  else if(tabId === 'pareto') {
+    // random Pareto
+    let factors = ["F1","F2","F3","F4"];
+    let counts = randomArray(4,5,30).sort((a,b)=>b-a);
+    let total = counts.reduce((a,b)=>a+b);
+    let percent = []; let sum=0;
+    counts.forEach((v,i)=>{sum+=v; percent.push((sum/total)*100);});
+    let canvas = document.createElement('canvas');
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: factors,
+        datasets: [{
+          label: 'Frequency',
+          data: counts,
+          backgroundColor: '#f9dd73'
+        }, {
+          label: 'Cumulative (%)',
+          data: percent,
+          type: 'line',
+          borderColor: '#3b49d1',
+          fill: false,
+          yAxisID: 'percent'
+        }]
+      },
+      options: {
+        plugins:{legend:{display:true}},
+        scales: {
+          y: { beginAtZero: true, title:{display:true,text:'Count'} },
+          percent: { position: 'right', type: 'linear', min:0, max:100, title:{display:true,text:'Cumulative (%)'} }
+        }
+      }
+    });
+  }
+}
+showTab('bar'); // Start with Bar Chart
+
+</script>
+</body>
+</html>
