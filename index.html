@@ -3,7 +3,6 @@
 <head>
   <title>Interactive Data Graphs & Plots (NSW Sample)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot@4.0.1/build/Chart.BoxPlot.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; }
@@ -19,6 +18,7 @@
     .dot-row {margin-bottom:3px;}
     .dot {display:inline-block; width:7px; height:7px; border-radius:50%; background:#2ecc40; margin:1px;}
     .venn-svg { margin: 10px 0 0 0;}
+    .plotly-graph-div .xtick .text { font-size: 0.95em; }
   </style>
 </head>
 <body>
@@ -27,7 +27,7 @@
 <div class="tab-content" id="tabContent"></div>
 
 <script>
-// List of diagrams, their instructions/questions, including a few more types
+// List of diagrams and their instructions/questions
 const diagrams = [
   { id: 'bar', name: 'Bar Chart', instruction: 'Bar charts compare discrete categories. Bars are separated for each category.', question: 'Which category has the highest value?', },
   { id: 'column', name: 'Column Chart', instruction: 'Column charts are vertical bar graphs for discrete categories.', question: 'Identify the category with the lowest value.' },
@@ -43,10 +43,7 @@ const diagrams = [
   { id: 'freqpoly', name: 'Frequency Polygon', instruction: 'A frequency polygon connects midpoints of histogram bins with lines.', question: 'Where is the frequency highest?' },
   { id: 'time', name: 'Time Series Graph', instruction: 'Time series graphs show how values change over chronologically ordered intervals.', question: 'At which time period is the maximum value?' },
   { id: 'venn', name: 'Venn Diagram', instruction: 'Venn diagrams show relationships, intersections, and unions between sets.', question: 'Which area represents the intersection of both sets?' },
-  { id: 'pareto', name: 'Pareto Chart', instruction: 'Pareto charts show bars in descending order, usually with a cumulative % line.', question: 'Which factor is most significant?' },
-  // Extended: Heatmap and Radar/Spider Chart
-  { id: 'heatmap', name: 'Heatmap', instruction: 'Heatmaps show intensity or correlation; higher values as darker colours.', question: 'Where is the hottest (darkest) cell?' },
-  { id: 'radar', name: 'Radar Chart', instruction: 'Radar/spider charts plot values on multiple axes; comparisons around a circle.', question: 'Which axis is highest?' },
+  { id: 'pareto', name: 'Pareto Chart', instruction: 'Pareto charts show bars in descending order, usually with a cumulative % line.', question: 'Which factor is most significant?' }
 ];
 
 // Setup Tabs
@@ -61,7 +58,6 @@ diagrams.forEach((d, idx) => {
   tabList.appendChild(tab);
 });
 
-// Current chart instance tracking for cleanup
 let chartInstance = null;
 let plotlyDivId = null;
 
@@ -82,25 +78,18 @@ function randomTimes(len) {
   return Array.from({length:len}, (_,i) => ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10"][i]);
 }
 
-// For heatmap
-function randomMatrix(n,m,min=0,max=1) {
-  return Array.from({length:n},()=> randomArray(m, min*10, max*10));
-}
-
 function cleanup() {
   if(chartInstance) { chartInstance.destroy(); chartInstance = null; }
   if(plotlyDivId) { Plotly.purge(plotlyDivId); plotlyDivId=null;}
   tabContent.innerHTML = '';
 }
 
-// Tabs - show related diagram with random sample, instructions, and question
 function showTab(tabId) {
   cleanup();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelector(`.tab[data-tabid="${tabId}"]`).classList.add('active');
   let diagram = diagrams.find(d=>d.id===tabId);
 
-  // Show Instructions and Question
   let instructions = document.createElement('div');
   instructions.className = 'instructions';
   instructions.textContent = diagram.instruction;
@@ -115,9 +104,8 @@ function showTab(tabId) {
   question.textContent = 'Q: ' + diagram.question;
   tabContent.appendChild(question);
 
-  // Random data for demonstration
   let numericData, categories, values, times, binLabels, histCounts;
-  if(tabId === 'bar' || tabId === 'column' || tabId === 'pie' || tabId === 'radar') {
+  if(tabId === 'bar' || tabId === 'column' || tabId === 'pie') {
     categories = randomCategories(4);
     values = randomArray(4);
   }
@@ -125,9 +113,9 @@ function showTab(tabId) {
     times = randomTimes(6);
     values = randomArray(6,1,40);
   }
-  if(tabId === 'histogram' || tabId === 'box' || tabId === 'dot' || tabId === 'stemleaf') {
+  if(tabId === 'histogram' || tabId === 'box' || tabId === 'dot' || tabId === 'stemleaf' || tabId === 'freqpoly') {
     numericData = randomArray(11,10,45);
-    binLabels = randomBins(4); // 10-19, 20-29, ...
+    binLabels = randomBins(4);
     histCounts = [
       numericData.filter(x => x >=10 && x<20).length,
       numericData.filter(x => x >=20 && x<30).length,
@@ -140,8 +128,6 @@ function showTab(tabId) {
     categories = randomCategories(4);
   }
 
-  // Switch by tabId
-  // Chart.js used unless otherwise noted
   if(tabId === 'bar') {
     let canvas = document.createElement('canvas');
     canvas.width=300;canvas.height=180;
@@ -256,14 +242,71 @@ function showTab(tabId) {
     });
     holder.appendChild(dotDiv);
   }
+  // ----- REVISED BOX-AND-WHISKER PLOT USING PLOTLY -----
   else if(tabId === 'box') {
-    let canvas = document.createElement('canvas');
-    canvas.width=300;canvas.height=180;
-    holder.appendChild(canvas);
-    chartInstance = new Chart(canvas, {
-      type: 'boxplot',
-      data: { labels: ['Sample'], datasets: [{ data: [numericData], backgroundColor:'#f9dd73' }] },
-      options: { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:false} } }
+    let div = document.createElement('div');
+    div.id = "boxTabDiv";
+    div.style.width='300px';div.style.height='180px';
+    holder.appendChild(div);
+    plotlyDivId = "boxTabDiv";
+    Plotly.newPlot(div.id, [{
+      y: numericData,
+      type: 'box',
+      name: 'Sample',
+      boxpoints: 'outliers',
+      marker: {color: '#f9dd73'},
+      line: {color: '#f9dd73'},
+      whiskerwidth: 0.5,
+      hoverinfo: 'y+name'
+    }], {
+      margin: {t:15, b:30, l:40, r:0},
+      yaxis: {title:'Value', zeroline:false, showgrid:true, gridwidth:1},
+      width:300,
+      height:180
+    });
+  }
+  // ----- REVISED FREQUENCY POLYGON WITH AREA SHADING AND HISTOGRAM -----
+  else if(tabId === 'freqpoly') {
+    // Midpoints and histogram
+    let midpoints = binLabels.map(label => {
+      let parts = label.split('-');
+      return (parseInt(parts[0])+parseInt(parts[1]))/2;
+    });
+    let div = document.createElement('div');
+    div.id = "freqpolyDiv";
+    div.style.width='300px';div.style.height='180px';
+    holder.appendChild(div);
+    plotlyDivId = "freqpolyDiv";
+    // Baseline points for area fill
+    let baseline = midpoints.map(mp=>0);
+    Plotly.newPlot(div.id, [
+      {
+        x: midpoints,
+        y: histCounts,
+        type: 'bar',
+        width: 0.35,
+        opacity: 0.17,
+        marker: {color:'#955251'},
+        hoverinfo:"skip"
+      },
+      {
+        x: midpoints,
+        y: histCounts,
+        type: 'scatter',
+        mode: 'lines+markers',
+        fill: 'tozeroy',
+        fillcolor: 'rgba(149,82,81,0.2)',
+        line: {color:'#955251', width:2},
+        marker: {color:'#955251', size:6},
+        name: 'Frequency Polygon'
+      }
+    ], {
+      xaxis: { title:'Midpoint', showgrid:false, zeroline:false },
+      yaxis: { title:'Count', range:[0, Math.max(...histCounts)+3] },
+      margin: {t:18, b:36, l:36, r:0},
+      width:300,
+      height:180,
+      showlegend:false
     });
   }
   else if(tabId === 'stemleaf') {
@@ -282,20 +325,6 @@ function showTab(tabId) {
     let pre = document.createElement('pre');
     pre.textContent = text;
     holder.appendChild(pre);
-  }
-  else if(tabId === 'freqpoly') {
-    let midpoints = binLabels.map(label => {
-      let parts = label.split('-');
-      return (parseInt(parts[0])+parseInt(parts[1]))/2;
-    });
-    let canvas = document.createElement('canvas');
-    canvas.width=300;canvas.height=180;
-    holder.appendChild(canvas);
-    chartInstance = new Chart(canvas, {
-      type: 'line',
-      data: { labels: midpoints, datasets: [{ data: histCounts, borderColor:'#955251', fill:false }] },
-      options: { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
-    });
   }
   else if(tabId === 'time') {
     let canvas = document.createElement('canvas');
@@ -361,42 +390,8 @@ function showTab(tabId) {
       }
     });
   }
-  else if(tabId === 'heatmap') {
-    let matrix = randomMatrix(4,4,0.2,1);
-    let xLabels = randomCategories(4), yLabels = randomCategories(4);
-    let div = document.createElement('div');
-    div.id = "heatmapDiv";
-    div.style.width='300px';div.style.height='180px';
-    holder.appendChild(div);
-    plotlyDivId = "heatmapDiv";
-    Plotly.newPlot(div.id, [{
-      z: matrix,
-      x: xLabels,
-      y: yLabels,
-      type: 'heatmap',
-      colorscale:'Viridis'
-    }], {margin:{t:10}, width:300, height:180});
-  }
-  else if(tabId === 'radar') {
-    let canvas = document.createElement('canvas');
-    canvas.width=300;canvas.height=180;
-    holder.appendChild(canvas);
-    chartInstance = new Chart(canvas, {
-      type: 'radar',
-      data: {
-        labels: categories,
-        datasets: [{
-          label: 'Sample',
-          data: values,
-          backgroundColor:'rgba(44,130,201,0.2)',
-          borderColor:'#2d91ca'
-        }]
-      },
-      options: {plugins:{legend:{display:false}}, scales:{ r:{min:0} } }
-    });
-  }
 }
-showTab('bar'); // Start with Bar Chart as default
+showTab('bar');
 
 </script>
 </body>
