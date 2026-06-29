@@ -6,18 +6,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot@4.0.1/build/Chart.BoxPlot.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif;}
-    .tabs { margin: 20px 0; }
-    .tab { display: inline-block; background: #f3f6fa; padding: 10px 24px; cursor: pointer; border: 1px solid #ccc; border-bottom: 0; border-radius: 6px 6px 0 0; margin-right: 6px;}
+    body { font-family: Arial, sans-serif; }
+    .tabs { margin: 16px 0; }
+    .tab { display: inline-block; background: #f3f6fa; padding: 7px 20px; cursor: pointer; border: 1px solid #ccc; border-bottom: 0; border-radius: 6px 6px 0 0; margin-right: 6px;}
     .tab.active { background: #e0edfa; font-weight: bold; }
-    .tab-content { border: 1px solid #ccc; padding: 24px; background: #ffffff; border-radius: 0 0 8px 8px;}
-    .instructions { font-size: 1em; color: #555; margin-bottom: 12px; }
-    .question { font-weight: bold; margin-top: 10px;}
-    .chart-holder { min-height:220px; }
-    pre {background:#f7f7f7;padding:8px;border-radius:4px;margin-bottom:8px;}
-    .dot-row {margin-bottom:4px;}
-    .dot {display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ecc40; margin:2px;}
-    .venn-svg { margin: 14px 0 0 0;}
+    .tab-content { border: 1px solid #ccc; padding: 12px 16px; background: #ffffff; border-radius: 0 0 8px 8px;}
+    .instructions { font-size: 0.97em; color: #555; margin-bottom: 8px; }
+    .question { font-weight: bold; margin-top: 8px;}
+    .chart-holder { min-height:120px; }
+    canvas, .plotly-graph-div { width:300px !important; height:180px !important; }
+    pre {background:#f7f7f7;padding:5px;border-radius:4px;margin-bottom:4px;font-size:0.95em;}
+    .dot-row {margin-bottom:3px;}
+    .dot {display:inline-block; width:7px; height:7px; border-radius:50%; background:#2ecc40; margin:1px;}
+    .venn-svg { margin: 10px 0 0 0;}
   </style>
 </head>
 <body>
@@ -26,98 +27,26 @@
 <div class="tab-content" id="tabContent"></div>
 
 <script>
-// List of diagrams and their instructions/questions
+// List of diagrams, their instructions/questions, including a few more types
 const diagrams = [
-  {
-    id: 'bar',
-    name: 'Bar Chart',
-    instruction: 'Bar charts compare discrete categories. Bars are separated for each category.',
-    question: 'Which category has the highest value?',
-  },
-  {
-    id: 'column',
-    name: 'Column Chart',
-    instruction: 'Column charts are vertical bar graphs for discrete categories.',
-    question: 'Identify the category with the lowest value.',
-  },
-  {
-    id: 'line',
-    name: 'Line Graph',
-    instruction: 'Line graphs show trends and changes over time using connected data points.',
-    question: 'Does the graph increase or decrease over time?',
-  },
-  {
-    id: 'pie',
-    name: 'Pie Chart',
-    instruction: 'Pie charts display the proportions of parts as slices of a circle.',
-    question: 'Which slice is the largest?',
-  },
-  {
-    id: 'histogram',
-    name: 'Histogram',
-    instruction: 'Histograms show frequencies of continuous data grouped into adjacent bins.',
-    question: 'Which bin has the most values?',
-  },
-  {
-    id: 'scatter',
-    name: 'Scatter Plot',
-    instruction: 'Scatter plots show the relationship between two numeric variables.',
-    question: 'Do the points show a positive, negative, or no correlation?',
-  },
-  {
-    id: 'area',
-    name: 'Area Graph',
-    instruction: 'Area graphs show how quantities change over time, with area filled under the line.',
-    question: 'What is the value at the peak of the area?',
-  },
-  {
-    id: 'bubble',
-    name: 'Bubble Chart',
-    instruction: 'Bubble charts plot points with variable bubble sizes to represent a third quantity.',
-    question: 'Which bubble is largest?',
-  },
-  {
-    id: 'dot',
-    name: 'Dot Plot',
-    instruction: 'Dot plots use dots to show frequencies for each data value.',
-    question: 'Which value has the most dots?',
-  },
-  {
-    id: 'box',
-    name: 'Box and Whisker Plot',
-    instruction: 'Box plots show spread, quartiles, median, and outliers.',
-    question: 'What is the value of the median?',
-  },
-  {
-    id: 'stemleaf',
-    name: 'Stem-and-Leaf Plot',
-    instruction: 'Stem-and-leaf plots split numbers into stems (leading digits) and leaves (trailing digits).',
-    question: 'What is the mode?',
-  },
-  {
-    id: 'freqpoly',
-    name: 'Frequency Polygon',
-    instruction: 'A frequency polygon connects midpoints of histogram bins with lines.',
-    question: 'Where is the frequency highest?',
-  },
-  {
-    id: 'time',
-    name: 'Time Series Graph',
-    instruction: 'Time series graphs show how values change over chronologically ordered intervals.',
-    question: 'At which time period is the maximum value?',
-  },
-  {
-    id: 'venn',
-    name: 'Venn Diagram',
-    instruction: 'Venn diagrams show relationships, intersections, and unions between sets.',
-    question: 'Which area represents the intersection of both sets?',
-  },
-  {
-    id: 'pareto',
-    name: 'Pareto Chart',
-    instruction: 'Pareto charts show bars in descending order, usually with a cumulative % line.',
-    question: 'Which factor is most significant?',
-  }
+  { id: 'bar', name: 'Bar Chart', instruction: 'Bar charts compare discrete categories. Bars are separated for each category.', question: 'Which category has the highest value?', },
+  { id: 'column', name: 'Column Chart', instruction: 'Column charts are vertical bar graphs for discrete categories.', question: 'Identify the category with the lowest value.' },
+  { id: 'line', name: 'Line Graph', instruction: 'Line graphs show trends and changes over time using connected data points.', question: 'Does the graph increase or decrease over time?' },
+  { id: 'pie', name: 'Pie Chart', instruction: 'Pie charts display the proportions of parts as slices of a circle.', question: 'Which slice is the largest?' },
+  { id: 'histogram', name: 'Histogram', instruction: 'Histograms show frequencies of continuous data grouped into adjacent bins.', question: 'Which bin has the most values?' },
+  { id: 'scatter', name: 'Scatter Plot', instruction: 'Scatter plots show the relationship between two numeric variables.', question: 'Do the points show a positive, negative, or no correlation?' },
+  { id: 'area', name: 'Area Graph', instruction: 'Area graphs show how quantities change over time, with area filled under the line.', question: 'What is the value at the peak of the area?' },
+  { id: 'bubble', name: 'Bubble Chart', instruction: 'Bubble charts plot points with variable bubble sizes to represent a third quantity.', question: 'Which bubble is largest?' },
+  { id: 'dot', name: 'Dot Plot', instruction: 'Dot plots use dots to show frequencies for each data value.', question: 'Which value has the most dots?' },
+  { id: 'box', name: 'Box and Whisker Plot', instruction: 'Box plots show spread, quartiles, median, and outliers.', question: 'What is the value of the median?' },
+  { id: 'stemleaf', name: 'Stem-and-Leaf Plot', instruction: 'Stem-and-leaf plots split numbers into stems (leading digits) and leaves (trailing digits).', question: 'What is the mode?' },
+  { id: 'freqpoly', name: 'Frequency Polygon', instruction: 'A frequency polygon connects midpoints of histogram bins with lines.', question: 'Where is the frequency highest?' },
+  { id: 'time', name: 'Time Series Graph', instruction: 'Time series graphs show how values change over chronologically ordered intervals.', question: 'At which time period is the maximum value?' },
+  { id: 'venn', name: 'Venn Diagram', instruction: 'Venn diagrams show relationships, intersections, and unions between sets.', question: 'Which area represents the intersection of both sets?' },
+  { id: 'pareto', name: 'Pareto Chart', instruction: 'Pareto charts show bars in descending order, usually with a cumulative % line.', question: 'Which factor is most significant?' },
+  // Extended: Heatmap and Radar/Spider Chart
+  { id: 'heatmap', name: 'Heatmap', instruction: 'Heatmaps show intensity or correlation; higher values as darker colours.', question: 'Where is the hottest (darkest) cell?' },
+  { id: 'radar', name: 'Radar Chart', instruction: 'Radar/spider charts plot values on multiple axes; comparisons around a circle.', question: 'Which axis is highest?' },
 ];
 
 // Setup Tabs
@@ -153,6 +82,11 @@ function randomTimes(len) {
   return Array.from({length:len}, (_,i) => ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10"][i]);
 }
 
+// For heatmap
+function randomMatrix(n,m,min=0,max=1) {
+  return Array.from({length:n},()=> randomArray(m, min*10, max*10));
+}
+
 function cleanup() {
   if(chartInstance) { chartInstance.destroy(); chartInstance = null; }
   if(plotlyDivId) { Plotly.purge(plotlyDivId); plotlyDivId=null;}
@@ -183,7 +117,7 @@ function showTab(tabId) {
 
   // Random data for demonstration
   let numericData, categories, values, times, binLabels, histCounts;
-  if(tabId === 'bar' || tabId === 'column' || tabId === 'pie') {
+  if(tabId === 'bar' || tabId === 'column' || tabId === 'pie' || tabId === 'radar') {
     categories = randomCategories(4);
     values = randomArray(4);
   }
@@ -210,6 +144,7 @@ function showTab(tabId) {
   // Chart.js used unless otherwise noted
   if(tabId === 'bar') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'bar',
@@ -219,6 +154,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'column') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'bar',
@@ -228,6 +164,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'line') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'line',
@@ -237,6 +174,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'pie') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'pie',
@@ -246,6 +184,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'histogram') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'bar',
@@ -258,6 +197,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'scatter') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'scatter',
@@ -271,6 +211,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'area') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'line',
@@ -281,6 +222,7 @@ function showTab(tabId) {
   else if(tabId === 'bubble') {
     let div = document.createElement('div');
     div.id = "bubbleTabDiv";
+    div.style.width='300px';div.style.height='180px';
     holder.appendChild(div);
     plotlyDivId = "bubbleTabDiv";
     let sample = {
@@ -288,12 +230,12 @@ function showTab(tabId) {
       y: values,
       mode: 'markers',
       marker: {
-        size: values,
+        size: values.map(x=>x/2),
         color: ['#fc7171','#84c4ec','#82d9a7','#f9dd73']
       },
       text: categories
     };
-    Plotly.newPlot(div.id, [sample], {margin:{t:10}, xaxis:{title:'X'}, yaxis:{title:'Y'}});
+    Plotly.newPlot(div.id, [sample], {margin:{t:10}, xaxis:{title:'X'}, yaxis:{title:'Y'}, width:300, height:180});
   }
   else if(tabId === 'dot') {
     let freqMap = {};
@@ -316,6 +258,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'box') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'boxplot',
@@ -346,6 +289,7 @@ function showTab(tabId) {
       return (parseInt(parts[0])+parseInt(parts[1]))/2;
     });
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'line',
@@ -355,6 +299,7 @@ function showTab(tabId) {
   }
   else if(tabId === 'time') {
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'line',
@@ -364,31 +309,31 @@ function showTab(tabId) {
   }
   else if(tabId === 'venn') {
     let svg = document.createElementNS("http://www.w3.org/2000/svg",'svg');
-    svg.setAttribute('width','220'); svg.setAttribute('height','160'); svg.classList.add('venn-svg');
+    svg.setAttribute('width','180'); svg.setAttribute('height','120'); svg.classList.add('venn-svg');
     let el1 = document.createElementNS("http://www.w3.org/2000/svg",'ellipse');
-    el1.setAttribute('cx','90'); el1.setAttribute('cy','80'); el1.setAttribute('rx','60'); el1.setAttribute('ry','50');
+    el1.setAttribute('cx','70'); el1.setAttribute('cy','60'); el1.setAttribute('rx','48'); el1.setAttribute('ry','40');
     el1.setAttribute('fill','#ffb3a7'); el1.setAttribute('fill-opacity','0.5');
     svg.appendChild(el1);
     let el2 = document.createElementNS("http://www.w3.org/2000/svg",'ellipse');
-    el2.setAttribute('cx','140'); el2.setAttribute('cy','80'); el2.setAttribute('rx','60'); el2.setAttribute('ry','50');
+    el2.setAttribute('cx','110'); el2.setAttribute('cy','60'); el2.setAttribute('rx','48'); el2.setAttribute('ry','40');
     el2.setAttribute('fill','#a7ceff'); el2.setAttribute('fill-opacity','0.5');
     svg.appendChild(el2);
     let t1=document.createElementNS("http://www.w3.org/2000/svg",'text');
-    t1.setAttribute('x','65'); t1.setAttribute('y','50'); t1.setAttribute('font-size','14'); t1.textContent='A'; svg.appendChild(t1);
+    t1.setAttribute('x','45'); t1.setAttribute('y','25'); t1.setAttribute('font-size','12'); t1.textContent='A'; svg.appendChild(t1);
     let t2=document.createElementNS("http://www.w3.org/2000/svg",'text');
-    t2.setAttribute('x','145'); t2.setAttribute('y','50'); t2.setAttribute('font-size','14'); t2.textContent='B'; svg.appendChild(t2);
+    t2.setAttribute('x','115'); t2.setAttribute('y','25'); t2.setAttribute('font-size','12'); t2.textContent='B'; svg.appendChild(t2);
     let t3=document.createElementNS("http://www.w3.org/2000/svg",'text');
-    t3.setAttribute('x','110'); t3.setAttribute('y','80'); t3.setAttribute('font-size','15'); t3.textContent='A ∩ B'; svg.appendChild(t3);
+    t3.setAttribute('x','82'); t3.setAttribute('y','60'); t3.setAttribute('font-size','13'); t3.textContent='A ∩ B'; svg.appendChild(t3);
     holder.appendChild(svg);
   }
   else if(tabId === 'pareto') {
-    // random Pareto
     let factors = ["F1","F2","F3","F4"];
     let counts = randomArray(4,5,30).sort((a,b)=>b-a);
     let total = counts.reduce((a,b)=>a+b);
     let percent = []; let sum=0;
     counts.forEach((v,i)=>{sum+=v; percent.push((sum/total)*100);});
     let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
     holder.appendChild(canvas);
     chartInstance = new Chart(canvas, {
       type: 'bar',
@@ -416,8 +361,42 @@ function showTab(tabId) {
       }
     });
   }
+  else if(tabId === 'heatmap') {
+    let matrix = randomMatrix(4,4,0.2,1);
+    let xLabels = randomCategories(4), yLabels = randomCategories(4);
+    let div = document.createElement('div');
+    div.id = "heatmapDiv";
+    div.style.width='300px';div.style.height='180px';
+    holder.appendChild(div);
+    plotlyDivId = "heatmapDiv";
+    Plotly.newPlot(div.id, [{
+      z: matrix,
+      x: xLabels,
+      y: yLabels,
+      type: 'heatmap',
+      colorscale:'Viridis'
+    }], {margin:{t:10}, width:300, height:180});
+  }
+  else if(tabId === 'radar') {
+    let canvas = document.createElement('canvas');
+    canvas.width=300;canvas.height=180;
+    holder.appendChild(canvas);
+    chartInstance = new Chart(canvas, {
+      type: 'radar',
+      data: {
+        labels: categories,
+        datasets: [{
+          label: 'Sample',
+          data: values,
+          backgroundColor:'rgba(44,130,201,0.2)',
+          borderColor:'#2d91ca'
+        }]
+      },
+      options: {plugins:{legend:{display:false}}, scales:{ r:{min:0} } }
+    });
+  }
 }
-showTab('bar'); // Start with Bar Chart
+showTab('bar'); // Start with Bar Chart as default
 
 </script>
 </body>
